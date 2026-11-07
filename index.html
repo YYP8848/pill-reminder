@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>按时吃药</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  color-scheme: light;
+  --page:#f5f6f8; --surface:#ffffff;
+  --ink:#101418; --ink-2:#5c6670; --ink-3:#9aa4ad;
+  --grid:#eef0f2; --axis:#d6dae0;
+  --border:rgba(16,20,24,0.08);
+  --accent:#2a78d6; --accent-soft:rgba(42,120,214,0.10);
+  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  --shadow:0 1px 2px rgba(16,20,24,.04), 0 10px 30px rgba(16,20,24,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19;
+    --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#898781;
+    --grid:#2c2c2a; --axis:#383835;
+    --border:rgba(255,255,255,0.08);
+    --accent:#3987e5; --accent-soft:rgba(57,135,229,0.18);
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0;}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--page); color:var(--ink); font-size:15px; line-height:1.5;
+  padding-bottom: calc(66px + env(safe-area-inset-bottom));
+  -webkit-font-smoothing:antialiased;
+}
+
+/* header */
+.app-header{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--border);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;}
+.head-inner{max-width:640px; margin:0 auto; display:flex; align-items:center; gap:10px;}
+.head-title{flex:1; min-width:0;}
+.head-title .t{font-size:19px; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:7px;}
+.head-title .d{font-size:12px; color:var(--ink-3); margin-top:1px;}
+.hbtn{width:38px; height:38px; border-radius:12px; border:none; background:var(--grid); cursor:pointer;
+  font-size:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.12s;}
+.hbtn:active{transform:scale(.94);}
+.hbtn.on{background:var(--accent-soft);}
+
+main{max-width:640px; margin:0 auto; padding:14px 14px 20px;}
+.view{display:none; animation:fade .2s ease;}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+/* card */
+.card{background:var(--surface); border-radius:18px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow);}
+.card-h{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+.card-h h2{font-size:15px; margin:0; font-weight:700; letter-spacing:.01em;}
+.card-h .sub{font-size:12px; color:var(--ink-3); font-weight:400;}
+
+/* buttons */
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--border);
+  background:var(--surface); color:var(--ink); border-radius:12px; padding:11px 16px; font-size:14px; font-weight:600;
+  cursor:pointer; transition:.12s; font-family:inherit;}
+.btn:active{transform:scale(.98);}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+.btn.ghost{background:transparent;}
+.btn.small{padding:6px 12px; font-size:13px; border-radius:10px;}
+.btn.danger{color:var(--critical);}
+.btn.block{width:100%;}
+
+/* chips */
+.chips{display:flex; gap:8px; overflow-x:auto; padding:2px; scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border);
+  background:var(--surface); color:var(--ink-2); border-radius:99px; padding:7px 14px; font-size:13px; font-weight:600;
+  cursor:pointer; white-space:nowrap; transition:.12s; font-family:inherit;}
+.chip.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+.chip .dot{width:8px; height:8px; border-radius:50%;}
+
+/* progress ring */
+.progress-card{display:flex; align-items:center; gap:16px;}
+.progress-card .info{flex:1; min-width:0;}
+.progress-card .info .status{font-size:14px; font-weight:600; margin-bottom:2px;}
+.progress-card .info .sub{font-size:12.5px; color:var(--ink-3);}
+.progress-card .nums{font-size:12.5px; color:var(--ink-2); margin-top:6px; font-variant-numeric:tabular-nums;}
+.progress-card .nums b{font-size:17px; color:var(--ink);}
+
+/* dose list */
+.time-group{margin-bottom:12px;}
+.time-label{font-size:12px; color:var(--ink-3); font-weight:600; margin:0 0 6px 2px; display:flex; align-items:center; gap:6px;}
+.time-label::after{content:""; flex:1; height:1px; background:var(--grid);}
+.dose{display:flex; align-items:center; gap:12px; padding:10px 2px;}
+.dose + .dose{border-top:1px solid var(--grid);}
+.dose .sw{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+.dose .info{flex:1; min-width:0;}
+.dose .name{font-weight:600; font-size:15px;}
+.dose .dos{font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.check{width:40px; height:40px; border-radius:50%; border:2px solid var(--axis); background:transparent; cursor:pointer;
+  font-size:17px; color:transparent; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.15s;}
+.dose.done .check{background:var(--good); border-color:var(--good); color:#fff;}
+.dose.done .name{color:var(--ink-3); text-decoration:line-through;}
+
+/* segmented */
+.seg{display:flex; background:var(--grid); border-radius:11px; padding:3px; gap:3px;}
+.seg button{flex:1; border:none; background:transparent; color:var(--ink-2); padding:7px 0; border-radius:8px;
+  font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;}
+.seg button.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+/* calendar */
+.cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.cal-head .nav{width:34px; height:34px; border-radius:10px; border:none; background:var(--grid); font-size:18px; cursor:pointer; color:var(--ink);}
+.cal-head .nav:active{background:var(--axis);}
+.cal-title{font-weight:700; font-size:15px;}
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+.cal-dow{text-align:center; font-size:11px; color:var(--ink-3); padding:4px 0;}
+.cal-cell{aspect-ratio:1/1; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  font-size:13px; font-weight:500; cursor:pointer; color:var(--ink); font-variant-numeric:tabular-nums;}
+.cal-cell.dim{color:var(--ink-3); opacity:.45;}
+.cal-cell.today{box-shadow:inset 0 0 0 1.5px var(--accent);}
+.cal-cell.sel{background:var(--accent); color:#fff;}
+.cal-dot{width:5px; height:5px; border-radius:50%; margin-top:3px;}
+.cal-dot.good{background:var(--good);} .cal-dot.warn{background:var(--warning);}
+.cal-dot.miss{background:var(--critical);} .cal-dot.none{background:var(--axis);}
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-2); margin-top:12px;}
+.legend span{display:inline-flex; align-items:center; gap:5px;}
+
+/* year cards */
+.year-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+.month-card{border:1px solid var(--border); background:var(--surface); border-radius:14px; padding:11px; cursor:pointer;}
+.month-card:active{transform:scale(.98);}
+.month-card .m{font-weight:600; font-size:13px; color:var(--ink-2);}
+.month-card .pct{font-size:21px; font-weight:700; margin-top:3px; font-variant-numeric:tabular-nums;}
+.month-card .bar{height:5px; background:var(--grid); border-radius:99px; margin-top:7px; overflow:hidden;}
+.month-card .bar i{display:block; height:100%; border-radius:99px; background:var(--good);}
+
+/* indicator */
+.latest{display:flex; align-items:baseline; gap:8px; padding:2px 0 10px;}
+.latest .val{font-size:34px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums;}
+.latest .unit{color:var(--ink-2); font-size:14px;}
+.badge{font-size:11px; font-weight:700; padding:3px 9px; border-radius:99px;}
+.badge.normal{background:rgba(12,163,12,0.12); color:var(--good);}
+.badge.high{background:rgba(208,59,59,0.12); color:var(--critical);}
+.badge.low{background:rgba(208,59,59,0.12); color:var(--critical);}
+.badge.na{background:var(--grid); color:var(--ink-2);}
+.chart-wrap{position:relative;}
+.chart-wrap svg{display:block; width:100%; height:auto; touch-action:none;}
+.chart-tip{position:absolute; pointer-events:none; background:var(--ink); color:var(--surface); border-radius:8px;
+  padding:5px 9px; font-size:12px; white-space:nowrap; transform:translate(-50%,-115%); opacity:0; transition:opacity .1s; z-index:5;}
+.chart-tip.show{opacity:1;}
+.chart-tip .t1{font-weight:600; font-variant-numeric:tabular-nums;}
+.chart-tip .t2{opacity:.8; font-size:11px;}
+
+/* reading rows */
+.reading{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--grid);}
+.reading:last-child{border-bottom:none;}
+.reading .date{color:var(--ink-3); font-size:12.5px; width:58px; flex-shrink:0; font-variant-numeric:tabular-nums;}
+.reading .val{font-weight:700; font-size:16px; font-variant-numeric:tabular-nums;}
+.reading .unit{font-weight:500; font-size:12px; color:var(--ink-2);}
+.reading .note{font-size:12px; color:var(--ink-3); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.reading .del{background:none; border:none; color:var(--ink-3); font-size:16px; cursor:pointer; padding:4px 6px; border-radius:8px;}
+.reading .del:active{background:var(--grid);}
+
+/* manage list */
+.mng-item{display:flex; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid var(--grid);}
+.mng-item:last-child{border-bottom:none;}
+.mng-item .info{flex:1; min-width:0;}
+.mng-item .nm{font-weight:600;}
+.mng-item .sub{font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.icon-btn{background:none; border:none; cursor:pointer; font-size:15px; padding:6px; color:var(--ink-2); border-radius:9px;}
+.icon-btn:active{background:var(--grid);}
+
+/* forms */
+.field{margin-bottom:13px;}
+.field label{display:block; font-size:13px; color:var(--ink-2); margin-bottom:5px; font-weight:600;}
+.field input,.field select{width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:12px;
+  background:var(--surface); color:var(--ink); font-size:15px; font-family:inherit;}
+.field input:focus,.field select:focus{outline:2px solid var(--accent); outline-offset:0; border-color:transparent;}
+.field .hint{font-size:12px; color:var(--ink-3); margin-top:4px;}
+.row2{display:flex; gap:10px;} .row2 .field{flex:1;}
+.time-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+.time-row input{flex:1;}
+.time-row .rm{background:none; border:none; color:var(--critical); font-size:18px; cursor:pointer; padding:4px 8px;}
+.swatches{display:flex; gap:9px; flex-wrap:wrap; margin-top:4px;}
+.swatch{width:30px; height:30px; border-radius:9px; cursor:pointer; border:2px solid transparent; transition:.1s;}
+.swatch.on{border-color:var(--ink); box-shadow:0 0 0 2px var(--surface) inset;}
+
+/* modal */
+.overlay{position:fixed; inset:0; background:rgba(10,12,16,0.45); z-index:50; display:none; align-items:flex-end; justify-content:center;}
+.overlay.show{display:flex;}
+.sheet{background:var(--surface); width:100%; max-width:640px; max-height:90vh; overflow:auto; border-radius:20px 20px 0 0;
+  padding:20px 16px calc(20px + env(safe-area-inset-bottom)); animation:up .22s ease;}
+@keyframes up{from{transform:translateY(24px); opacity:.4;} to{transform:none; opacity:1;}}
+.sheet h3{margin:0 0 16px; font-size:17px; font-weight:700;}
+.sheet .actions{display:flex; gap:10px; margin-top:18px;}
+.sheet .actions .btn{flex:1;}
+
+/* toast */
+#toast{position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(20px); z-index:60;
+  background:var(--ink); color:var(--surface); padding:11px 18px; border-radius:13px; font-size:14px; font-weight:600;
+  box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.25s; max-width:88vw; text-align:center;}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+/* empty */
+.empty{text-align:center; color:var(--ink-3); padding:26px 10px; font-size:14px;}
+.empty .big{font-size:38px; margin-bottom:8px;}
+
+/* tabbar */
+.tabbar{position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex; background:var(--surface);
+  border-top:1px solid var(--border); padding:5px 14px calc(5px + env(safe-area-inset-bottom)); gap:8px;}
+.tabbar button{flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; background:none; border:none;
+  color:var(--ink-3); font-size:11px; padding:5px 0 3px; cursor:pointer; border-radius:12px; font-family:inherit; transition:.12s;}
+.tabbar button .ico{font-size:20px; line-height:1;}
+.tabbar button.on{color:var(--accent); font-weight:700;}
+
+/* settings rows */
+.srow{display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--grid);}
+.srow:last-child{border-bottom:none;}
+.srow .info{flex:1;} .srow .t{font-weight:600; font-size:14px;} .srow .s{font-size:12px; color:var(--ink-3);}
+.switch{position:relative; width:46px; height:27px; background:var(--axis); border-radius:99px; border:none; cursor:pointer; transition:.2s; flex-shrink:0;}
+.switch::after{content:""; position:absolute; top:3px; left:3px; width:21px; height:21px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 2px rgba(0,0,0,.3);}
+.switch.on{background:var(--accent);}
+.switch.on::after{left:22px;}
+.divider{height:1px; background:var(--grid); margin:6px 0;}
+</style>
+</head>
+<body>
+
+<header class="app-header"><div class="head-inner">
+  <div class="head-title">
+    <div class="t"><span id="headIcon">💊</span><span id="headTitle">吃药</span></div>
+    <div class="d" id="headDate"></div>
+  </div>
+  <button class="hbtn" id="bellBtn" title="用药提醒">🔔</button>
+  <button class="hbtn" id="gearBtn" title="设置">⚙️</button>
+</div></header>
+
+<main>
+  <section class="view active" id="view-pills"></section>
+  <section class="view" id="view-indicators"></section>
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button data-tab="pills" class="on"><span class="ico">💊</span>吃药</button>
+  <button data-tab="indicators"><span class="ico">📈</span>指标</button>
+</nav>
+
+<div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ================= 数据层 ================= */
+const KEY={meds:'meds',medLogs:'medLogs',inds:'inds',indLogs:'indLogs',settings:'settings',notified:'notified'};
+function load(k,d){ try{const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v;}catch(e){return d;} }
+function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+
+let meds=load(KEY.meds,[]);
+let medLogs=load(KEY.medLogs,[]);
+let inds=load(KEY.inds,[]);
+let indLogs=load(KEY.indLogs,[]);
+let settings=load(KEY.settings,{reminder:false});
+let notified=load(KEY.notified,{});
+
+const SERIES=[['#2a78d6','#3987e5'],['#eb6834','#d95926'],['#1baf7a','#199e70'],['#eda100','#c98500'],
+  ['#e87ba4','#d55181'],['#008300','#008300'],['#6250d6','#9085e9'],['#e34948','#e66767']];
+const CRITICAL='#d03b3b', GOOD='#0ca30c';
+function isDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
+function seriesColor(i){ return SERIES[(i||0)%8][isDark()?1:0]; }
+function accent(){ return isDark()?'#3987e5':'#2a78d6'; }
+function theme(){
+  const d=isDark();
+  return {ink:d?'#f0efec':'#101418',ink2:d?'#c3c2b7':'#5c6670',muted:'#9aa4ad',
+    grid:d?'#2c2c2a':'#eef0f2',axis:d?'#383835':'#d6dae0',surface:d?'#1a1a19':'#ffffff'};
+}
+
+/* ================= 工具 ================= */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtDate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayStr(){ return fmtDate(new Date()); }
+function nowHM(){ const d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function hmToMin(hm){ const p=hm.split(':').map(Number); return p[0]*60+p[1]; }
+function parseDate(s){ const p=s.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
+function fmtNum(v){ if(v==null) return ''; return String(Math.round(Number(v)*100)/100); }
+function fmtDateCN(s){ const d=parseDate(s); return (d.getMonth()+1)+'月'+d.getDate()+'日'; }
+function weekCN(s){ return ['日','一','二','三','四','五','六'][parseDate(s).getDay()]; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let toastTimer;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ================= 查询 ================= */
+function medById(id){ return meds.find(m=>m.id===id); }
+function indById(id){ return inds.find(i=>i.id===id); }
+function logFor(medId,date,time){ return medLogs.find(l=>l.medId===medId && l.date===date && l.time===time); }
+function scheduledDoses(date){
+  const list=[];
+  for(const m of meds){ if(m.active===false) continue; for(const t of m.times) list.push({medId:m.id,time:t,med:m}); }
+  return list.sort((a,b)=>a.time.localeCompare(b.time));
+}
+function dayStats(date){
+  const sched=scheduledDoses(date);
+  let taken=0; for(const s of sched){ if(logFor(s.medId,date,s.time)) taken++; }
+  const total=sched.length;
+  return {total, taken, ratio: total? taken/total : null};
+}
+
+/* ================= 视图 ================= */
+let curTab='pills';
+function switchTab(tab){
+  curTab=tab;
+  document.getElementById('view-pills').classList.toggle('active',tab==='pills');
+  document.getElementById('view-indicators').classList.toggle('active',tab==='indicators');
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  renderHeader();
+  if(tab==='pills') renderPills(); else renderIndicators();
+  window.scrollTo(0,0);
+}
+document.getElementById('tabbar').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTab(b.dataset.tab); });
+
+function renderHeader(){
+  const d=new Date();
+  document.getElementById('headIcon').textContent=curTab==='pills'?'💊':'📈';
+  document.getElementById('headTitle').textContent=curTab==='pills'?'吃药':'指标';
+  document.getElementById('headDate').textContent=(d.getMonth()+1)+'月'+d.getDate()+'日 星期'+['日','一','二','三','四','五','六'][d.getDay()];
+  document.getElementById('bellBtn').textContent=settings.reminder?'🔔':'🔕';
+  document.getElementById('bellBtn').classList.toggle('on',settings.reminder);
+}
+document.getElementById('bellBtn').addEventListener('click',toggleReminder);
+document.getElementById('gearBtn').addEventListener('click',openSettings);
+
+/* ================= 吃药页 ================= */
+function renderPills(){
+  const el=document.getElementById('view-pills');
+  const date=todayStr();
+  const sched=scheduledDoses(date);
+  const st=dayStats(date);
+
+  // 今日进度
+  const ratio=st.total? st.ratio:0;
+  const doneAll=st.total>0 && st.taken>=st.total;
+  const ringColor=doneAll? GOOD : accent();
+  const c=2*Math.PI*26;
+  let statusText = !st.total ? '今天没有用药安排' : (doneAll?'今日全部完成 🎉':'今日用药进行中');
+  let numsHtml = st.total? `<b>${st.taken}</b> / ${st.total} 次` : '';
+
+  let html=`
+  <div class="card progress-card">
+    <svg width="62" height="62" viewBox="0 0 62 62">
+      <circle cx="31" cy="31" r="26" fill="none" stroke="var(--grid)" stroke-width="6"/>
+      <circle cx="31" cy="31" r="26" fill="none" stroke="${ringColor}" stroke-width="6" stroke-linecap="round"
+        stroke-dasharray="${c}" stroke-dashoffset="${c*(1-ratio)}" transform="rotate(-90 31 31)"/>
+      <text x="31" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">${Math.round(ratio*100)}%</text>
+    </svg>
+    <div class="info">
+      <div class="status">${statusText}</div>
+      <div class="sub">${date? fmtDateCN(date)+' 星期'+weekCN(date):''}</div>
+      <div class="nums">${numsHtml}${!st.total?'<span style="color:var(--ink-3)">可在下方添加药物</span>':''}</div>
+    </div>
+  </div>`;
+
+  // 今日清单
+  html+=`<div class="card"><div class="card-h"><h2>今日用药</h2></div><div id="doseList">`;
+  if(!sched.length){
+    html+=`<div class="empty"><div class="big">💊</div>还没有药物，点下方「添加药物」开始</div>`;
+  } else {
+    const byTime={};
+    sched.forEach(s=>{ (byTime[s.time]=byTime[s.time]||[]).push(s); });
+    Object.keys(byTime).sort().forEach(time=>{
+      html+=`<div class="time-group"><div class="time-label">${time}</div>`;
+      byTime[time].forEach(s=>{
+        const done=!!logFor(s.medId,date,s.time);
+        const info=[s.med.dosage,s.med.note].filter(Boolean).join(' · ');
+        html+=`<div class="dose ${done?'done':''}" data-med="${s.medId}" data-time="${s.time}">
+          <span class="sw" style="background:${seriesColor(s.med.color)}"></span>
+          <div class="info"><div class="name">${esc(s.med.name)}</div><div class="dos">${esc(info||'—')}</div></div>
+          <button class="check">✓</button></div>`;
+      });
+      html+=`</div>`;
+    });
+  }
+  html+=`</div></div>`;
+
+  // 历史记录
+  html+=`<div class="card"><div class="card-h"><h2>历史记录</h2><span class="sub">查看过去用药情况</span></div>
+    <div class="seg" id="histSeg">
+      <button data-m="day" class="${histState.mode==='day'?'on':''}">日</button>
+      <button data-m="month" class="${histState.mode==='month'?'on':''}">月</button>
+      <button data-m="year" class="${histState.mode==='year'?'on':''}">年</button>
+    </div>
+    <div id="histBody" style="margin-top:14px"></div></div>`;
+
+  // 药物管理
+  html+=`<div class="card"><div class="card-h"><h2>我的药物</h2><button class="btn primary small" id="btnAddMed">＋ 添加</button></div>
+    <div id="medsList">`;
+  if(!meds.length){ html+=`<div class="empty" style="padding:8px">暂无药物</div>`; }
+  else meds.forEach(m=>{
+    const times=m.times.join('、');
+    html+=`<div class="mng-item"><span class="sw" style="background:${seriesColor(m.color)}"></span>
+      <div class="info"><div class="nm">${esc(m.name)}</div><div class="sub">${esc([m.dosage,times||'每日灵活',m.note].filter(Boolean).join(' · '))}</div></div>
+      <button class="icon-btn" data-edit="${m.id}">✏️</button>
+      <button class="icon-btn" data-del="${m.id}">🗑️</button></div>`;
+  });
+  html+=`</div></div>`;
+
+  el.innerHTML=html;
+  renderHistBody();
+
+  // 绑定事件
+  const dl=document.getElementById('doseList');
+  if(dl) dl.addEventListener('click',e=>{ const r=e.target.closest('.dose'); if(r) toggleDose(r.dataset.med,r.dataset.time,date); });
+  document.getElementById('histSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; histState.mode=b.dataset.m; document.querySelectorAll('#histSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderHistBody(); });
+  document.getElementById('btnAddMed').addEventListener('click',()=>openMedModal());
+  el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openMedModal(b.dataset.edit));
+  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ if(confirm('删除该药物？')){ meds=meds.filter(m=>m.id!==b.dataset.del); save(KEY.meds,meds); renderPills(); } });
+}
+
+function toggleDose(medId,time,date){
+  const i=medLogs.findIndex(l=>l.medId===medId && l.date===date && l.time===time);
+  if(i>=0) medLogs.splice(i,1); else medLogs.push({id:uid(),medId,date,time,taken:true,ts:Date.now()});
+  save(KEY.medLogs,medLogs);
+  renderPills();
+}
+
+/* ================= 历史区块 ================= */
+const histState={mode:'day', cursor:new Date()};
+function renderHistBody(){
+  const body=document.getElementById('histBody');
+  if(histState.mode==='day') body.innerHTML=dayHTML();
+  else if(histState.mode==='month') body.innerHTML=monthHTML();
+  else body.innerHTML=yearHTML();
+  bindHist();
+}
+function dayHTML(){
+  const date=fmtDate(histState.cursor);
+  const sched=scheduledDoses(date);
+  let html=`<input type="date" id="dayPicker" value="${date}" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--ink);font-size:15px;">
+    <div style="height:10px"></div>`;
+  html+=`<div style="font-size:13px;color:var(--ink-3);margin-bottom:4px">${fmtDateCN(date)} 星期${weekCN(date)}</div>`;
+  if(!sched.length) html+=`<div class="empty" style="padding:14px">这天没有安排（按当前药物计算）</div>`;
+  else sched.forEach(s=>{
+    const done=!!logFor(s.medId,date,s.time);
+    html+=`<div class="dose ${done?'done':''}" data-med="${s.medId}" data-time="${s.time}">
+      <span class="sw" style="background:${seriesColor(s.med.color)}"></span>
+      <span style="font-size:12.5px;color:var(--ink-2);width:40px;flex-shrink:0;font-variant-numeric:tabular-nums">${s.time}</span>
+      <div class="info"><div class="name">${esc(s.med.name)}</div><div class="dos">${esc(s.med.dosage||'')}</div></div>
+      <button class="check">✓</button></div>`;
+  });
+  return html;
+}
+function monthHTML(){
+  const y=histState.cursor.getFullYear(), m=histState.cursor.getMonth();
+  const firstDow=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), today=todayStr();
+  let html=`<div class="cal-head"><button class="nav" id="pmPrev">‹</button><div class="cal-title">${y} 年 ${m+1} 月</div><button class="nav" id="pmNext">›</button></div><div class="cal-grid">`;
+  ['日','一','二','三','四','五','六'].forEach(d=>html+=`<div class="cal-dow">${d}</div>`);
+  for(let i=0;i<firstDow;i++) html+=`<div class="cal-cell"></div>`;
+  for(let day=1;day<=days;day++){
+    const date=y+'-'+pad(m+1)+'-'+pad(day), st=dayStats(date);
+    let cls='cal-cell', dot='';
+    if(date>today) cls+=' dim';
+    else if(st.total===0) dot='<div class="cal-dot none"></div>';
+    else if(st.ratio>=1) dot='<div class="cal-dot good"></div>';
+    else if(st.ratio>0) dot='<div class="cal-dot warn"></div>';
+    else dot='<div class="cal-dot miss"></div>';
+    if(date===today) cls+=' today';
+    html+=`<div class="${cls}" data-date="${date}">${day}${dot}</div>`;
+  }
+  html+=`</div><div class="legend"><span><i class="cal-dot good" style="display:inline-block"></i>全部完成</span><span><i class="cal-dot warn" style="display:inline-block"></i>部分</span><span><i class="cal-dot miss" style="display:inline-block"></i>漏服</span><span><i class="cal-dot none" style="display:inline-block"></i>无安排</span></div>`;
+  return html;
+}
+function yearHTML(){
+  const y=histState.cursor.getFullYear();
+  let html=`<div class="cal-head"><button class="nav" id="pyPrev">‹</button><div class="cal-title">${y} 年</div><button class="nav" id="pyNext">›</button></div><div class="year-grid">`;
+  for(let m=0;m<12;m++){
+    let total=0,taken=0; const days=new Date(y,m+1,0).getDate();
+    for(let day=1;day<=days;day++){ const st=dayStats(y+'-'+pad(m+1)+'-'+pad(day)); if(st.total>0){total+=st.total;taken+=st.taken;} }
+    const pct=total? Math.round(taken/total*100):null;
+    html+=`<div class="month-card" data-m="${m}"><div class="m">${m+1} 月</div><div class="pct">${pct==null?'—':pct+'%'}</div><div class="bar"><i style="width:${pct||0}%"></i></div></div>`;
+  }
+  html+=`</div><div class="legend" style="margin-top:12px"><span>点击月份查看详情</span></div>`;
+  return html;
+}
+function bindHist(){
+  const body=document.getElementById('histBody');
+  if(histState.mode==='day'){
+    const p=document.getElementById('dayPicker'); if(p) p.onchange=e=>{ histState.cursor=parseDate(e.target.value); renderHistBody(); };
+    body.querySelectorAll('.dose').forEach(r=>r.querySelector('.check').onclick=()=>toggleDose(r.dataset.med,r.dataset.time,fmtDate(histState.cursor)));
+  } else if(histState.mode==='month'){
+    document.getElementById('pmPrev').onclick=()=>{ histState.cursor=new Date(histState.cursor.getFullYear(),histState.cursor.getMonth()-1,1); renderHistBody(); };
+    document.getElementById('pmNext').onclick=()=>{ histState.cursor=new Date(histState.cursor.getFullYear(),histState.cursor.getMonth()+1,1); renderHistBody(); };
+    body.querySelectorAll('.cal-cell[data-date]').forEach(c=>c.onclick=()=>{ histState.cursor=parseDate(c.dataset.date); histState.mode='day'; document.querySelectorAll('#histSeg button').forEach(x=>x.classList.toggle('on',x.dataset.m==='day')); renderHistBody(); });
+  } else {
+    document.getElementById('pyPrev').onclick=()=>{ histState.cursor=new Date(histState.cursor.getFullYear()-1,0,1); renderHistBody(); };
+    document.getElementById('pyNext').onclick=()=>{ histState.cursor=new Date(histState.cursor.getFullYear()+1,0,1); renderHistBody(); };
+    body.querySelectorAll('.month-card').forEach(c=>c.onclick=()=>{ histState.cursor=new Date(histState.cursor.getFullYear(),Number(c.dataset.m),1); histState.mode='month'; document.querySelectorAll('#histSeg button').forEach(x=>x.classList.toggle('on',x.dataset.m==='month')); renderHistBody(); });
+  }
+}
+
+/* ================= 指标页 ================= */
+const indState={selected:null, range:'all'};
+function renderIndicators(){
+  const el=document.getElementById('view-indicators');
+  if(!inds.length){
+    el.innerHTML=`<div class="card"><div class="empty"><div class="big">📈</div>还没有体检指标</div>
+      <button class="btn primary block" id="btnAddInd0">＋ 添加指标</button></div>`;
+    document.getElementById('btnAddInd0').onclick=()=>openIndModal();
+    return;
+  }
+  if(!indById(indState.selected)) indState.selected=inds[0].id;
+  const ind=indById(indState.selected);
+
+  // 指标选择 chips
+  let chips='<div class="chips">';
+  inds.forEach(i=>{ chips+=`<button class="chip ${i.id===ind.id?'on':''}" data-ind="${i.id}"><span class="dot" style="background:${seriesColor(i.color)}"></span>${esc(i.name)}</button>`; });
+  chips+=`<button class="chip" id="btnAddIndChip" style="color:var(--ink-3)">＋ 添加</button></div>`;
+
+  // 时间范围
+  const ranges=[['30','近30天'],['90','近90天'],['365','近1年'],['all','全部']];
+  let rchips='<div class="seg" id="rangeSeg" style="margin-top:10px">';
+  ranges.forEach(r=>rchips+=`<button data-r="${r[0]}" class="${indState.range===r[0]?'on':''}">${r[1]}</button>`);
+  rchips+='</div>';
+
+  // 最新值
+  const readings=indLogs.filter(l=>l.indicatorId===ind.id).sort((a,b)=>a.date<b.date?-1:1);
+  const last=readings[readings.length-1];
+  let latestHtml='';
+  if(last){
+    const b=statusBadge(ind,last.value);
+    latestHtml=`<div class="latest"><span class="val">${fmtNum(last.value)}</span><span class="unit">${esc(ind.unit||'')}</span>${b}</div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:-8px">最近记录：${last.date}</div>`;
+  }
+
+  let html=`<div class="card"><div class="card-h"><h2>选择指标</h2></div>${chips}<div style="height:2px"></div>${rchips}</div>`;
+
+  html+=`<button class="btn primary block" id="btnRecord" style="margin-bottom:10px">＋ 记录指标（可补录过去日期）</button>`;
+  html+=`<button class="btn block" id="btnBatch" style="margin-bottom:12px">📋 批量补录一整年</button>`;
+
+  html+=`<div class="card"><div class="card-h"><h2>趋势</h2>${normalRangeLabel(ind)}</div>${latestHtml}<div id="chartWrap"></div></div>`;
+
+  // 历史记录列表
+  html+=`<div class="card"><div class="card-h"><h2>历史记录</h2><span class="sub">${readings.length} 条 · 点记录可修改</span></div>
+    <div id="readingList">`;
+  if(!readings.length) html+=`<div class="empty" style="padding:12px">还没有记录，点下方「＋ 记录指标」添加（可选过去日期）</div>`;
+  else readings.slice().reverse().forEach(l=>{
+    html+=`<div class="reading" data-id="${l.id}">
+      <span class="date">${l.date.slice(5)}</span>
+      <span class="val">${fmtNum(l.value)}</span><span class="unit">${esc(ind.unit||'')}</span>
+      <span class="note">${esc(l.note||'')}</span>
+      <button class="del">✕</button></div>`;
+  });
+  html+=`</div></div>`;
+
+  // 指标管理
+  html+=`<div class="card"><div class="card-h"><h2>管理指标</h2></div><div id="indsManage">`;
+  inds.forEach(i=>{
+    html+=`<div class="mng-item"><span class="sw" style="background:${seriesColor(i.color)}"></span>
+      <div class="info"><div class="nm">${esc(i.name)}</div><div class="sub">${esc(i.unit||'')}${i.normalMin!==''&&i.normalMin!=null?' · 正常 '+i.normalMin+'–'+i.normalMax:''}</div></div>
+      <button class="icon-btn" data-editind="${i.id}">✏️</button>
+      <button class="icon-btn" data-delind="${i.id}">🗑️</button></div>`;
+  });
+  html+=`</div></div>`;
+
+  el.innerHTML=html;
+
+  // 绑定
+  el.querySelectorAll('.chip[data-ind]').forEach(c=>c.onclick=()=>{ indState.selected=c.dataset.ind; renderIndicators(); });
+  const ci=document.getElementById('btnAddIndChip'); if(ci) ci.onclick=()=>openIndModal();
+  document.getElementById('rangeSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; indState.range=b.dataset.r; renderIndicators(); };
+  document.getElementById('btnRecord').onclick=()=>openReadingModal(ind.id);
+  document.getElementById('btnBatch').onclick=()=>openBatchModal(ind.id);
+  document.getElementById('readingList').addEventListener('click',e=>{
+    const del=e.target.closest('.del');
+    if(del){ const row=del.closest('.reading'); if(confirm('删除这条记录？')){ indLogs=indLogs.filter(l=>l.id!==row.dataset.id); save(KEY.indLogs,indLogs); renderIndicators(); } return; }
+    const row=e.target.closest('.reading'); if(row) openReadingModal(ind.id, row.dataset.id);
+  });
+  el.querySelectorAll('[data-editind]').forEach(b=>b.onclick=()=>openIndModal(b.dataset.editind));
+  el.querySelectorAll('[data-delind]').forEach(b=>b.onclick=()=>{ if(confirm('删除该指标及其所有记录？')){ inds=inds.filter(i=>i.id!==b.dataset.delind); indLogs=indLogs.filter(l=>l.indicatorId!==b.dataset.delind); save(KEY.inds,inds); save(KEY.indLogs,indLogs); indState.selected=null; renderIndicators(); } });
+
+  drawChart(ind);
+}
+function statusBadge(ind,v){
+  const nmin=ind.normalMin, nmax=ind.normalMax;
+  const has=(nmin!==''&&nmin!=null)&&(nmax!==''&&nmax!=null);
+  if(!has) return `<span class="badge na">未设范围</span>`;
+  if(v<Number(nmin)) return `<span class="badge low">偏低</span>`;
+  if(v>Number(nmax)) return `<span class="badge high">偏高</span>`;
+  return `<span class="badge normal">正常</span>`;
+}
+function normalRangeLabel(ind){
+  if(ind.normalMin!==''&&ind.normalMin!=null) return `<span class="sub">正常 ${fmtNum(ind.normalMin)}–${fmtNum(ind.normalMax)}${ind.unit?' '+esc(ind.unit):''}</span>`;
+  return '';
+}
+function filterReadings(ind){
+  let list=indLogs.filter(l=>l.indicatorId===ind.id).sort((a,b)=>a.date<b.date?-1:1);
+  if(indState.range!=='all'){ const cut=new Date(); cut.setDate(cut.getDate()-Number(indState.range)); list=list.filter(l=>parseDate(l.date)>=cut); }
+  return list;
+}
+function drawChart(ind){
+  const wrap=document.getElementById('chartWrap'); if(!wrap) return;
+  const readings=filterReadings(ind);
+  if(!readings.length){ wrap.innerHTML=`<div class="empty"><div class="big">📉</div>暂无数据，先「＋ 补录」一条吧</div>`; return; }
+  const points=readings.map(l=>({ms:parseDate(l.date).getTime(),y:Number(l.value),date:l.date,label:fmtDateCN(l.date)}));
+  drawLineChart(wrap,{points,color:seriesColor(ind.color),name:ind.name,unit:ind.unit,normalMin:ind.normalMin,normalMax:ind.normalMax});
+}
+
+/* ================= 折线图 ================= */
+function niceTicks(min,max,count){
+  if(min===max){ min-=1; max+=1; }
+  const span=max-min, step0=span/count, mag=Math.pow(10,Math.floor(Math.log10(step0)));
+  const norm=step0/mag; let step;
+  if(norm<1.5) step=1; else if(norm<3) step=2; else if(norm<7) step=5; else step=10;
+  step*=mag;
+  const start=Math.floor(min/step)*step, ticks=[];
+  for(let v=start; v<=max+step*1e-9; v+=step) ticks.push(v);
+  return ticks;
+}
+function drawLineChart(wrap,cfg){
+  const {points,color,unit,normalMin,normalMax}=cfg;
+  if(!points.length) return;
+  const th=theme();
+  const W=wrap.clientWidth||320, H=240;
+  const pad={l:44,r:14,t:14,b:26};
+  const iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
+  let yMin=Math.min(...points.map(p=>p.y)), yMax=Math.max(...points.map(p=>p.y));
+  if(normalMin!==''&&normalMin!=null){ yMin=Math.min(yMin,Number(normalMin)); yMax=Math.max(yMax,Number(normalMax)); }
+  const yPad=(yMax-yMin)*0.14 || Math.abs(yMax)*0.1 || 1;
+  yMin-=yPad; yMax+=yPad;
+  const ticks=niceTicks(yMin,yMax,4);
+  yMin=Math.min(yMin,ticks[0]); yMax=Math.max(yMax,ticks[ticks.length-1]);
+  let xMin=points[0].ms, xMax=points[points.length-1].ms;
+  if(xMin===xMax){ xMin-=86400000; xMax+=86400000; }
+  const xPad=(xMax-xMin)*0.02; xMin-=xPad; xMax+=xPad;
+  const X=ms=>pad.l+(ms-xMin)/(xMax-xMin)*iw;
+  const Y=v=>pad.t+(1-(v-yMin)/(yMax-yMin))*ih;
+
+  let s='';
+  if(normalMin!==''&&normalMin!=null&&normalMax!==''&&normalMax!=null){
+    const y1=Y(Math.max(Number(normalMin),yMin)), y2=Y(Math.min(Number(normalMax),yMax));
+    s+=`<rect x="${pad.l}" y="${Math.min(y1,y2)}" width="${iw}" height="${Math.abs(y2-y1)}" fill="${color}" fill-opacity="0.07"></rect>`;
+  }
+  ticks.forEach(v=>{ const y=Y(v);
+    s+=`<line x1="${pad.l}" y1="${y}" x2="${pad.l+iw}" y2="${y}" stroke="${th.grid}" stroke-width="1"></line>
+    <text x="${pad.l-7}" y="${y+4}" text-anchor="end" font-size="11" fill="${th.muted}" font-variant-numeric="tabular-nums">${fmtAxis(v)}</text>`; });
+  const xN=Math.min(6,points.length), stepIdx=Math.max(1,Math.floor(points.length/xN));
+  points.forEach((p,i)=>{ if(i%stepIdx!==0 && i!==points.length-1) return;
+    s+=`<text x="${X(p.ms)}" y="${H-7}" text-anchor="middle" font-size="10.5" fill="${th.muted}">${p.label}</text>`; });
+  s+=`<line x1="${pad.l}" y1="${Y(yMin)}" x2="${pad.l+iw}" y2="${Y(yMin)}" stroke="${th.axis}" stroke-width="1"></line>`;
+  const linePts=points.map(p=>X(p.ms)+','+Y(p.y)).join(' ');
+  s+=`<polygon points="${pad.l},${Y(yMin)} ${linePts} ${X(xMax)},${Y(yMin)}" fill="${color}" fill-opacity="0.08"></polygon>`;
+  s+=`<polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+  const isOut=v=>(normalMin!==''&&normalMin!=null&&v<Number(normalMin))||(normalMax!==''&&normalMax!=null&&v>Number(normalMax));
+  points.forEach(p=>{ const c=isOut(p.y)?CRITICAL:color;
+    s+=`<circle cx="${X(p.ms)}" cy="${Y(p.y)}" r="4" fill="${c}" stroke="${th.surface}" stroke-width="2"></circle>`; });
+  const last=points[points.length-1];
+  const lc=isOut(last.y)?CRITICAL:color;
+  const lastLabel=`${fmtNum(last.y)}${unit||''}`;
+  const lx=Math.min(X(last.ms)+10, W-pad.r-(lastLabel.length*6.5));
+  s+=`<text x="${lx}" y="${Y(last.y)-8}" font-size="12" font-weight="600" fill="${th.ink}">${lastLabel}</text>`;
+
+  wrap.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${s}</svg><div class="chart-tip" id="chartTip"></div>`;
+
+  const svg=wrap.querySelector('svg'), tip=wrap.querySelector('#chartTip');
+  let cross=document.createElementNS('http://www.w3.org/2000/svg','line');
+  cross.setAttribute('stroke',th.grid); cross.setAttribute('stroke-width','1');
+  cross.setAttribute('y1',pad.t); cross.setAttribute('y2',pad.t+ih); cross.style.display='none'; svg.appendChild(cross);
+  function show(i){ const p=points[i]; cross.style.display='';
+    cross.setAttribute('x1',X(p.ms)); cross.setAttribute('x2',X(p.ms));
+    tip.innerHTML=`<div class="t1">${p.label}　${fmtNum(p.y)}${unit||''}</div>${isOut(p.y)?'<div class="t2">⚠ 超出正常范围</div>':''}`;
+    tip.classList.add('show'); tip.style.left=X(p.ms)+'px'; tip.style.top=Y(p.y)+'px'; }
+  function hide(){ cross.style.display='none'; tip.classList.remove('show'); }
+  function handle(ev){ const rect=svg.getBoundingClientRect(); const px=(ev.clientX||(ev.touches&&ev.touches[0].clientX))-rect.left;
+    const dx=(px-pad.l)/iw*(xMax-xMin)+xMin; let bi=0,bd=Infinity;
+    points.forEach((p,i)=>{ const d=Math.abs(p.ms-dx); if(d<bd){bd=d;bi=i;} }); show(bi); }
+  svg.addEventListener('pointermove',handle);
+  svg.addEventListener('pointerdown',handle);
+  svg.addEventListener('pointerleave',hide);
+  svg.addEventListener('pointerup',()=>setTimeout(hide,1500));
+}
+function fmtAxis(v){ const a=Math.abs(v); if(a>=10000) return (v/1000)+'K'; if(a>=1000) return (v/1000)+'k'; return fmtNum(v); }
+
+/* ================= 提醒 ================= */
+let audioCtx;
+function beep(){
+  try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=audioCtx.currentTime;
+    for(let i=0;i<3;i++){ const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=880+i*140; o.connect(g); g.connect(audioCtx.destination);
+      const s=t+i*0.28; g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.22,s+0.02); g.gain.exponentialRampToValueAtTime(0.0001,s+0.2);
+      o.start(s); o.stop(s+0.22); }
+  }catch(e){}
+}
+function toggleReminder(){
+  if(!('Notification' in window)){ toast('此浏览器不支持通知'); return; }
+  if(Notification.permission==='granted'){ settings.reminder=!settings.reminder; save(KEY.settings,settings); renderHeader(); if(settings.reminder){toast('提醒已开启');beep();} }
+  else Notification.requestPermission().then(p=>{ settings.reminder=(p==='granted'); save(KEY.settings,settings); renderHeader(); if(settings.reminder){toast('提醒已开启');beep();} });
+}
+function fireReminder(s){
+  toast('⏰ 该吃「'+s.med.name+'」啦（'+s.time+'）');
+  beep();
+  if(settings.reminder && 'Notification' in window && Notification.permission==='granted'){
+    try{ new Notification('该吃药了',{body:s.med.name+' · '+s.time+(s.med.dosage?' · '+s.med.dosage:'')}); }catch(e){}
+  }
+}
+setInterval(()=>{
+  if(!settings.reminder) return;
+  const date=todayStr(), now=nowHM();
+  for(const s of scheduledDoses(date)){
+    const key=date+'|'+s.medId+'|'+s.time;
+    const diff=hmToMin(now)-hmToMin(s.time);
+    if(diff>=0 && diff<=30 && !logFor(s.medId,date,s.time) && !notified[key]){
+      notified[key]=true; save(KEY.notified,notified); fireReminder(s);
+    }
+  }
+},20000);
+
+/* ================= 弹窗 ================= */
+const overlay=document.getElementById('overlay'), sheet=document.getElementById('sheet');
+function openSheet(html){ sheet.innerHTML=html; overlay.classList.add('show'); }
+function closeSheet(){ overlay.classList.remove('show'); }
+overlay.addEventListener('click',e=>{ if(e.target===overlay) closeSheet(); });
+
+function openMedModal(id){
+  const m=id? medById(id):null;
+  let times=m?[...m.times]:['08:00'];
+  const rt=()=>times.map((t,i)=>`<div class="time-row"><input type="time" class="tinput" value="${t}"><button class="rm" data-i="${i}">✕</button></div>`).join('');
+  let sw=''; for(let i=0;i<8;i++) sw+=`<div class="swatch ${(m?(m.color||0):0)===i?'on':''}" data-c="${i}" style="background:${seriesColor(i)}"></div>`;
+  openSheet(`
+    <h3>${m?'编辑药物':'添加药物'}</h3>
+    <div class="field"><label>药物名称 *</label><input type="text" id="fName" value="${m?esc(m.name):''}" placeholder="例如：阿司匹林"></div>
+    <div class="field"><label>剂量</label><input type="text" id="fDosage" value="${m?esc(m.dosage||''):''}" placeholder="100mg / 1片"></div>
+    <div class="field"><label>服用时间 *</label><div id="fTimes">${rt()}</div><button class="btn small ghost" id="addTime" style="margin-top:6px">＋ 添加时间</button></div>
+    <div class="field"><label>备注</label><input type="text" id="fNote" value="${m?esc(m.note||''):''}" placeholder="如：饭后服用"></div>
+    <div class="field"><label>颜色</label><div class="swatches" id="fColor">${sw}</div></div>
+    <div class="actions"><button class="btn" id="fCancel">取消</button><button class="btn primary" id="fSave">保存</button></div>`);
+  document.getElementById('fCancel').onclick=closeSheet;
+  let color=m?(m.color||0):0;
+  document.getElementById('fColor').onclick=e=>{ const s=e.target.closest('.swatch'); if(!s) return; color=Number(s.dataset.c);
+    document.querySelectorAll('#fColor .swatch').forEach(x=>x.classList.toggle('on',x===s)); };
+  document.getElementById('addTime').onclick=()=>{ times.push('08:00'); document.getElementById('fTimes').innerHTML=rt(); bindTimes(); };
+  function bindTimes(){
+    document.querySelectorAll('#fTimes .rm').forEach(b=>b.onclick=()=>{ times.splice(Number(b.dataset.i),1); if(!times.length) times=['08:00']; document.getElementById('fTimes').innerHTML=rt(); bindTimes(); });
+    document.querySelectorAll('#fTimes .tinput').forEach((inp,i)=>inp.onchange=e=>{ times[i]=e.target.value; });
+  }
+  bindTimes();
+  document.getElementById('fSave').onclick=()=>{
+    const name=document.getElementById('fName').value.trim(); if(!name){ toast('请填写药物名称'); return; }
+    const tl=[...times].filter(Boolean).sort(); if(!tl.length){ toast('请至少保留一个时间'); return; }
+    const obj={name, dosage:document.getElementById('fDosage').value.trim(), note:document.getElementById('fNote').value.trim(), times:tl, color, active:m?m.active!==false:true};
+    if(m) Object.assign(m,obj); else meds.push({id:uid(),...obj});
+    save(KEY.meds,meds); closeSheet(); renderPills(); toast('已保存');
+  };
+}
+
+function openIndModal(id){
+  const i=id? indById(id):null;
+  let sw=''; for(let c=0;c<8;c++) sw+=`<div class="swatch ${(i?(i.color||0):0)===c?'on':''}" data-c="${c}" style="background:${seriesColor(c)}"></div>`;
+  openSheet(`
+    <h3>${i?'编辑指标':'添加指标'}</h3>
+    <div class="field"><label>指标名称 *</label><input type="text" id="fName" value="${i?esc(i.name):''}" placeholder="如：收缩压、体重、血糖"></div>
+    <div class="field"><label>单位</label><input type="text" id="fUnit" value="${i?esc(i.unit||''):''}" placeholder="mmHg / kg / mmol/L"></div>
+    <div class="row2">
+      <div class="field"><label>正常下限</label><input type="number" id="fMin" value="${i&&i.normalMin!=null?i.normalMin:''}" placeholder="如 90"></div>
+      <div class="field"><label>正常上限</label><input type="number" id="fMax" value="${i&&i.normalMax!=null?i.normalMax:''}" placeholder="如 140"></div>
+    </div>
+    <div class="field"><label>颜色</label><div class="swatches" id="fColor">${sw}</div></div>
+    <div class="field hint">设置正常范围后，折线图会画出参考区间，超出范围的点标红。</div>
+    <div class="actions"><button class="btn" id="fCancel">取消</button>${i?'<button class="btn danger" id="fDel">删除</button>':''}<button class="btn primary" id="fSave">保存</button></div>`);
+  document.getElementById('fCancel').onclick=closeSheet;
+  let color=i?(i.color||0):0;
+  document.getElementById('fColor').onclick=e=>{ const s=e.target.closest('.swatch'); if(!s) return; color=Number(s.dataset.c);
+    document.querySelectorAll('#fColor .swatch').forEach(x=>x.classList.toggle('on',x===s)); };
+  if(i) document.getElementById('fDel').onclick=()=>{ if(confirm('删除该指标及其所有记录？')){ inds=inds.filter(x=>x.id!==i.id); indLogs=indLogs.filter(l=>l.indicatorId!==i.id); save(KEY.inds,inds); save(KEY.indLogs,indLogs); closeSheet(); indState.selected=null; renderIndicators(); } };
+  document.getElementById('fSave').onclick=()=>{
+    const name=document.getElementById('fName').value.trim(); if(!name){ toast('请填写指标名称'); return; }
+    const mn=document.getElementById('fMin').value.trim(), mx=document.getElementById('fMax').value.trim();
+    if((mn&&!mx)||(!mn&&mx)){ toast('正常范围请同时填写上下限，或都留空'); return; }
+    const obj={name, unit:document.getElementById('fUnit').value.trim(), normalMin:mn===''?'':Number(mn), normalMax:mx===''?'':Number(mx), color, active:true};
+    if(i) Object.assign(i,obj); else { const ni={id:uid(),...obj}; inds.push(ni); indState.selected=ni.id; }
+    save(KEY.inds,inds); closeSheet(); renderIndicators(); toast('已保存');
+  };
+}
+
+/* 记录指标（支持补录历史 / 编辑） */
+function openReadingModal(indId, logId){
+  const available=inds.filter(i=>i.active!==false);
+  if(!available.length){ toast('请先添加指标'); openIndModal(); return; }
+  const log=logId? indLogs.find(l=>l.id===logId):null;
+  const ind=log? indById(log.indicatorId) : (indId? indById(indId): available[0]);
+  if(!ind) return;
+  openSheet(`
+    <h3>${log?'修改记录':'记录指标'}</h3>
+    <div class="field"><label>指标</label><select id="fInd">${available.map(x=>`<option value="${x.id}" ${x.id===ind.id?'selected':''}>${esc(x.name)}${x.unit?'（'+esc(x.unit)+'）':''}</option>`).join('')}</select></div>
+    <div class="row2">
+      <div class="field"><label>日期</label><input type="date" id="fDate" value="${log?log.date:todayStr()}"></div>
+      <div class="field"><label>数值 *</label><input type="number" step="any" id="fVal" value="${log?fmtNum(log.value):''}" placeholder="${esc(ind.unit||'')}"></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px">
+      <button class="chip" data-days="0">今天</button>
+      <button class="chip" data-days="1">昨天</button>
+      <button class="chip" data-days="7">7天前</button>
+      <button class="chip" data-days="30">30天前</button>
+      <button class="chip" data-days="90">3月前</button>
+      <button class="chip" data-days="365">1年前</button>
+    </div>
+    <div class="field"><label>备注</label><input type="text" id="fNote" value="${log?esc(log.note||''):''}" placeholder="如：晨起空腹"></div>
+    <div class="field hint">💡 日期可改成过去，方便补录以前的体检指标。</div>
+    <div class="actions"><button class="btn" id="fCancel">取消</button>${log?'<button class="btn danger" id="fDel2">删除</button>':''}<button class="btn primary" id="fSave">保存</button></div>`);
+  document.getElementById('fCancel').onclick=closeSheet;
+  document.getElementById('fInd').onchange=e=>{ const u=indById(e.target.value).unit||''; document.getElementById('fVal').placeholder=u; };
+  sheet.querySelectorAll('[data-days]').forEach(c=>c.onclick=()=>{ const d=new Date(); d.setDate(d.getDate()-Number(c.dataset.days)); document.getElementById('fDate').value=fmtDate(d); });
+  if(log) document.getElementById('fDel2').onclick=()=>{ indLogs=indLogs.filter(l=>l.id!==logId); save(KEY.indLogs,indLogs); closeSheet(); renderIndicators(); };
+  document.getElementById('fSave').onclick=()=>{
+    const indicatorId=document.getElementById('fInd').value;
+    const date=document.getElementById('fDate').value;
+    const val=document.getElementById('fVal').value;
+    if(!date){ toast('请选择日期'); return; }
+    if(val===''||val==null){ toast('请填写数值'); return; }
+    const note=document.getElementById('fNote').value.trim();
+    if(log){ Object.assign(log,{indicatorId,date,value:Number(val),note}); }
+    else indLogs.push({id:uid(),indicatorId,date,value:Number(val),note});
+    save(KEY.indLogs,indLogs);
+    indState.range='all';
+    closeSheet(); toast('已保存 · '+date);
+    indState.selected=indicatorId; renderIndicators();
+  };
+}
+
+/* 批量补录一整年 */
+function generateDates(start,end,mode,n){
+  const dates=[];
+  let cur=parseDate(start), endD=parseDate(end);
+  const add=nn=>{ const r=new Date(cur); r.setDate(r.getDate()+nn); cur=r; };
+  while(cur<=endD){
+    dates.push(fmtDate(cur));
+    if(mode==='day') add(1);
+    else if(mode==='week') add(7);
+    else if(mode==='n') add(Math.max(1,n||1));
+    else if(mode==='month'){ const y=cur.getFullYear(),m=cur.getMonth(),d=cur.getDate(); const lastDay=new Date(y,m+2,0).getDate(); cur=new Date(y,m+1,Math.min(d,lastDay)); }
+    else break;
+  }
+  return dates;
+}
+function openBatchModal(indId){
+  const available=inds.filter(i=>i.active!==false);
+  if(!available.length){ toast('请先添加指标'); openIndModal(); return; }
+  const ind=indId? indById(indId): available[0];
+  if(!ind) return;
+  const today=todayStr();
+  openSheet(`
+    <h3>批量补录一整年</h3>
+    <div class="field"><label>指标</label><select id="bInd">${available.map(x=>`<option value="${x.id}" ${x.id===ind.id?'selected':''}>${esc(x.name)}${x.unit?'（'+esc(x.unit)+'）':''}</option>`).join('')}</select></div>
+    <div class="row2">
+      <div class="field"><label>开始日期</label><input type="date" id="bStart" value="${today}"></div>
+      <div class="field"><label>结束日期</label><input type="date" id="bEnd" value="${today}"></div>
+    </div>
+    <div class="field"><label>录入间隔</label>
+      <select id="bMode">
+        <option value="day">每天</option>
+        <option value="week">每周</option>
+        <option value="month">每月</option>
+        <option value="n">每 N 天</option>
+      </select>
+      <div id="bNwrap" style="display:none;margin-top:8px"><input type="number" id="bN" min="1" value="5" placeholder="间隔天数"></div>
+    </div>
+    <div class="field hint">💡 例：开始「去年今日」结束「今天」间隔「每周」，可一键补齐一整年每周的数据。日期太多会提示，可调大间隔。</div>
+    <button class="btn primary block" id="bGen" style="margin-bottom:12px">生成日期列表</button>
+    <div id="bList"></div>
+    <div class="actions"><button class="btn" id="fCancel">取消</button><button class="btn primary" id="bSave">保存</button></div>`);
+  document.getElementById('fCancel').onclick=closeSheet;
+  document.getElementById('bMode').onchange=e=>{ document.getElementById('bNwrap').style.display=(e.target.value==='n'?'block':'none'); };
+  let genDates=[];
+  document.getElementById('bGen').onclick=()=>{
+    const start=document.getElementById('bStart').value, end=document.getElementById('bEnd').value;
+    const mode=document.getElementById('bMode').value;
+    if(!start||!end){ toast('请选择起止日期'); return; }
+    if(start>end){ toast('开始日期不能晚于结束日期'); return; }
+    const n=Number(document.getElementById('bN').value)||1;
+    genDates=generateDates(start,end,mode,n);
+    if(!genDates.length){ toast('没有可生成的日期'); return; }
+    if(genDates.length>400){ toast('日期太多（'+genDates.length+' 天），请缩小范围或增大间隔'); return; }
+    const unit=esc(indById(document.getElementById('bInd').value).unit||'');
+    const box=document.getElementById('bList');
+    let h=`<div style="font-size:13px;color:var(--ink-2);margin-bottom:8px">共 ${genDates.length} 个日期，填入数值（留空则跳过）</div>`;
+    genDates.forEach(dt=>{ h+=`<div class="reading"><span class="date" style="width:64px">${dt.slice(5)}</span>
+      <input type="number" step="any" class="bval" data-date="${dt}" placeholder="${unit}" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font-size:15px;"></div>`; });
+    box.innerHTML=h;
+  };
+  document.getElementById('bSave').onclick=()=>{
+    if(!genDates.length){ toast('请先「生成日期列表」'); return; }
+    const indicatorId=document.getElementById('bInd').value;
+    let added=0, skipped=0;
+    document.querySelectorAll('#bList .bval').forEach(inp=>{
+      const v=inp.value; if(v===''||v==null) return;
+      const date=inp.dataset.date;
+      if(indLogs.find(l=>l.indicatorId===indicatorId && l.date===date)){ skipped++; return; }
+      indLogs.push({id:uid(),indicatorId,date,value:Number(v),note:''});
+      added++;
+    });
+    if(!added){ toast(skipped?'这些日期都已有记录，已跳过':'没有填入任何数值'); return; }
+    save(KEY.indLogs,indLogs);
+    indState.range='all'; indState.selected=indicatorId;
+    closeSheet(); renderIndicators();
+    toast('已补录 '+added+' 条'+(skipped?'，跳过 '+skipped+' 条已存在':''));
+  };
+}
+
+/* 设置 */
+function openSettings(){
+  openSheet(`
+    <h3>设置</h3>
+    <div class="srow"><div class="info"><div class="t">用药提醒</div><div class="s">到点响铃 + 通知（需页面保持打开）</div></div>
+      <button class="switch ${settings.reminder?'on':''}" id="sReminder"></button></div>
+    <div class="srow"><div class="info"><div class="t">导出备份</div><div class="s">下载 JSON 文件保存</div></div><button class="btn small" id="sExport">导出</button></div>
+    <div class="srow"><div class="info"><div class="t">导入备份</div><div class="s">从 JSON 文件恢复</div></div><button class="btn small" id="sImport">导入</button></div>
+    <div class="srow"><div class="info"><div class="t">载入示例数据</div><div class="s">快速体验功能</div></div><button class="btn small" id="sSample">载入</button></div>
+    <div class="divider"></div>
+    <div class="srow"><div class="info"><div class="t" style="color:var(--critical)">清空所有数据</div><div class="s">不可恢复，建议先导出</div></div><button class="btn small danger" id="sClear">清空</button></div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <div style="margin-top:16px;font-size:12px;color:var(--ink-3);line-height:1.6">数据保存在本机浏览器中，换手机或清理浏览器前请先「导出备份」。提醒仅在页面打开时生效，请将本页留在后台。</div>`);
+  document.getElementById('sReminder').onclick=()=>{ toggleReminder(); document.getElementById('sReminder').classList.toggle('on',settings.reminder); };
+  document.getElementById('sExport').onclick=exportData;
+  document.getElementById('sImport').onclick=()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange=importData;
+  document.getElementById('sSample').onclick=loadSample;
+  document.getElementById('sClear').onclick=clearAll;
+}
+
+/* 数据备份 */
+function exportData(){
+  const data={meds,medLogs,inds,indLogs,exportedAt:new Date().toISOString()};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  a.download='吃药记录备份-'+todayStr()+'.json'; a.click(); URL.revokeObjectURL(a.href);
+  toast('已导出备份文件');
+}
+function importData(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.meds&&!d.medLogs&&!d.inds) throw 0;
+    if(!confirm('导入将覆盖当前数据，继续？')) return;
+    meds=d.meds||[]; medLogs=d.medLogs||[]; inds=d.inds||[]; indLogs=d.indLogs||[];
+    save(KEY.meds,meds);save(KEY.medLogs,medLogs);save(KEY.inds,inds);save(KEY.indLogs,indLogs);
+    indState.selected=null; closeSheet(); renderPills(); toast('导入成功');
+  }catch(err){ toast('文件格式不正确'); } };
+  r.readAsText(f); e.target.value='';
+}
+function clearAll(){
+  if(!confirm('确定清空所有数据？此操作不可恢复。')) return;
+  meds=[];medLogs=[];inds=[];indLogs=[];
+  save(KEY.meds,meds);save(KEY.medLogs,medLogs);save(KEY.inds,inds);save(KEY.indLogs,indLogs);
+  closeSheet(); renderPills(); toast('已清空');
+}
+function loadSample(){
+  if(!confirm('载入示例数据（追加到现有数据）？')) return;
+  if(!meds.find(m=>m.name==='阿司匹林')) meds.push({id:uid(),name:'阿司匹林',dosage:'100mg 每日1次',note:'饭后服用',times:['08:00'],color:0,active:true});
+  if(!meds.find(m=>m.name==='维生素D')) meds.push({id:uid(),name:'维生素D',dosage:'1粒',note:'随餐',times:['12:30'],color:2,active:true});
+  if(!meds.find(m=>m.name==='降压药')) meds.push({id:uid(),name:'降压药',dosage:'1片',note:'早晚各一次',times:['08:00','20:00'],color:1,active:true});
+  save(KEY.meds,meds);
+  let bp=inds.find(i=>i.name==='收缩压'); if(!bp){ bp={id:uid(),name:'收缩压',unit:'mmHg',normalMin:90,normalMax:140,color:1,active:true}; inds.push(bp); }
+  let wt=inds.find(i=>i.name==='体重'); if(!wt){ wt={id:uid(),name:'体重',unit:'kg',normalMin:'',normalMax:'',color:6,active:true}; inds.push(wt); }
+  save(KEY.inds,inds);
+  const now=new Date();
+  [[120,''],[128,''],[135,''],[118,''],[142,'偏高'],[125,'']].forEach((v,i)=>{ const d=new Date(now); d.setDate(d.getDate()-(5-i)*3); const date=fmtDate(d);
+    if(!indLogs.find(l=>l.indicatorId===bp.id&&l.date===date)) indLogs.push({id:uid(),indicatorId:bp.id,date,value:v[0],note:v[1]}); });
+  [72.5,72.1,71.8,72.3].forEach((v,i)=>{ const d=new Date(now); d.setDate(d.getDate()-(3-i)*7); const date=fmtDate(d);
+    if(!indLogs.find(l=>l.indicatorId===wt.id&&l.date===date)) indLogs.push({id:uid(),indicatorId:wt.id,date,value:v,note:''}); });
+  save(KEY.indLogs,indLogs);
+  indState.selected=null; closeSheet(); toast('示例数据已载入');
+}
+
+/* ================= 启动 ================= */
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(curTab==='indicators') renderIndicators(); else renderPills(); });
+renderHeader();
+renderPills();
+</script>
+</body>
+</html>
