@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>按时吃药</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
 <style>
 :root{
   color-scheme: light;
@@ -979,6 +979,7 @@ function loadSample(){
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(curTab==='indicators') renderIndicators(); else renderPills(); });
 renderHeader();
 renderPills();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
 </html>
